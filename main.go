@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -101,6 +102,13 @@ func main() {
 	fields := reflect.VisibleFields(reflect.TypeOf(struct{ cpu.TimesStat }{}))
 	fieldNames = append(fieldNames, "Total")
 	for _, field := range fields {
+		if runtime.GOOS == "windows" && field.Name == "Nice" {
+			break
+		}
+		if runtime.GOOS == "darwin" && field.Name == "Iowait" {
+			break
+		}
+
 		// fmt.Printf("Key: %s\tType: %s\n", field.Name, field.Type)
 		if field.Type.String() == "float64" {
 			fieldNames = append(fieldNames, field.Name)
@@ -200,7 +208,7 @@ func executeCheck(event *types.Event) (int, error) {
 			}
 			//fmt.Println(check)
 			if err != nil {
-				return sensu.CheckStateCritical, fmt.Errorf("Error obtaining CPU timings: %v", err)
+				return sensu.CheckStateCritical, fmt.Errorf("error obtaining CPU timings: %v", err)
 			}
 
 			state := checkValue(fieldValues, check)

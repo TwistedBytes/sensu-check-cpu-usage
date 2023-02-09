@@ -45,6 +45,13 @@ Flags:
 Use "check-cpu-usage [command] --help" for more information about a command.
 ```
 
+List of types and OS support:
+  - All: Total User System Idle
+  - Mac + Linux : Nice 
+  - Linux: Iowait Irq Softirq Steal Guest GuestNice
+
+If using an unsupported type it will return 0.
+
 ## Configuration
 
 ### Asset registration
