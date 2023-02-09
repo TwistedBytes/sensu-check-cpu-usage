@@ -226,13 +226,13 @@ func checkValue(fieldValues map[string]float64, check *CpuCheck) int {
 	checkValueType := strings.ToLower(check.UsageType)
 
 	if checkValuePct > check.Critical {
-		fmt.Printf("%s Critical: %.2f%% CPU %s usage, is higher than %.2f%%\n", plugin.PluginConfig.Name, checkValuePct, checkValueType, check.Critical)
+		fmt.Printf("%s %s Critical: %.2f%% is higher than %.2f%%\n", plugin.PluginConfig.Name, checkValueType, checkValuePct, check.Critical)
 		checkState = sensu.CheckStateCritical
 	} else if checkValuePct > check.Warning {
-		fmt.Printf("%s Warning: %.2f%% CPU %s usage, is higher than %.2ff%%\n", plugin.PluginConfig.Name, checkValuePct, checkValueType, check.Warning)
+		fmt.Printf("%s %s Warning: %.2f%% is higher than %.2ff%%\n", plugin.PluginConfig.Name, checkValueType, checkValuePct, check.Warning)
 		checkState = sensu.CheckStateWarning
 	} else {
-		fmt.Printf("%s OK: %.2f%% CPU %s usage, is lower than %.2f%%\n", plugin.PluginConfig.Name, checkValuePct, checkValueType, check.Warning)
+		fmt.Printf("%s %s OK: %.2f%% is lower than %.2f%%\n", plugin.PluginConfig.Name, checkValueType, checkValuePct, check.Warning)
 	}
 
 	return checkState

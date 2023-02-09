@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMain(t *testing.T) {
+func TestMain(m *testing.M) {
 }
 
 func TestCheckArgs(t *testing.T) {
