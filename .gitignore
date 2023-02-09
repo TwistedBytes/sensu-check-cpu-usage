@@ -12,6 +12,9 @@ check-cpu-usage
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
+# development
+.idea/
+
 # dep
 vendor/
 

@@ -2,8 +2,12 @@ package main
 
 import (
 	"fmt"
+	"reflect"
+	"strconv"
+	"strings"
 	"time"
 
+	"github.com/oleiade/reflections"
 	"github.com/sensu-community/sensu-plugin-sdk/sensu"
 	"github.com/sensu/sensu-go/types"
 	"github.com/shirou/gopsutil/v3/cpu"
@@ -12,9 +16,32 @@ import (
 // Config represents the check plugin config.
 type Config struct {
 	sensu.PluginConfig
-	Critical float64
-	Warning  float64
-	Interval int
+	Critical   float64
+	Warning    float64
+	Interval   int
+	UsageType  string
+	UsageTypes string
+}
+
+type CpuStat struct {
+	Total     float64 `json:"used"`
+	User      float64 `json:"user"`
+	System    float64 `json:"system"`
+	Idle      float64 `json:"idle"`
+	Nice      float64 `json:"nice"`
+	Iowait    float64 `json:"iowait"`
+	Irq       float64 `json:"irq"`
+	Softirq   float64 `json:"softirq"`
+	Steal     float64 `json:"steal"`
+	Guest     float64 `json:"guest"`
+	GuestNice float64 `json:"guestNice"`
+}
+
+type CpuCheck struct {
+	Critical  float64
+	Warning   float64
+	UsageType string
+	Inverted  bool
 }
 
 var (
@@ -51,10 +78,36 @@ var (
 			Usage:     "Length of sample interval in seconds",
 			Value:     &plugin.Interval,
 		},
+		{
+			Path:     "usage-type",
+			Argument: "usage-type",
+			Default:  "Total",
+			Usage:    "Check cpu usage of type: ",
+			Value:    &plugin.UsageType,
+		},
+		{
+			Path:     "usage-types",
+			Argument: "usage-types",
+			Default:  "",
+			Usage:    "Check cpu usage multiple type, see usage-type. list comma seperated format per value: 'type:warning:critical:invert'. Type is required, rest uses the defaults",
+			Value:    &plugin.UsageTypes,
+		},
 	}
+
+	fieldNames []string
 )
 
 func main() {
+	fields := reflect.VisibleFields(reflect.TypeOf(struct{ cpu.TimesStat }{}))
+	fieldNames = append(fieldNames, "Total")
+	for _, field := range fields {
+		// fmt.Printf("Key: %s\tType: %s\n", field.Name, field.Type)
+		if field.Type.String() == "float64" {
+			fieldNames = append(fieldNames, field.Name)
+		}
+	}
+	options[3].Usage = options[3].Usage + fmt.Sprint(fieldNames)
+
 	check := sensu.NewGoCheck(&plugin.PluginConfig, options, checkArgs, executeCheck, false)
 	check.Execute()
 }
@@ -81,45 +134,119 @@ func executeCheck(event *types.Event) (int, error) {
 		return sensu.CheckStateCritical, fmt.Errorf("Error obtaining CPU timings: %v", err)
 	}
 
-	startTotal := start[0].User + start[0].System + start[0].Idle + start[0].Nice + start[0].Iowait + start[0].Irq + start[0].Softirq + start[0].Steal + start[0].Guest + start[0].GuestNice
-
 	duration, err := time.ParseDuration(fmt.Sprintf("%ds", plugin.Interval))
 	if err != nil {
 		return sensu.CheckStateCritical, fmt.Errorf("Error parsing duration: %v", err)
 	}
 
 	time.Sleep(duration)
-
 	end, err := cpu.Times(false)
+
 	if err != nil {
 		return sensu.CheckStateCritical, fmt.Errorf("Error obtaining CPU timings: %v", err)
 	}
 
-	endTotal := end[0].User + end[0].System + end[0].Idle + end[0].Nice + end[0].Iowait + end[0].Irq + end[0].Softirq + end[0].Steal + end[0].Guest + end[0].GuestNice
+	//fmt.Println(fieldNames)
 
-	diff := endTotal - startTotal
-	idlePct := ((end[0].Idle - start[0].Idle) / diff) * 100
-	usedPct := 100 - idlePct
+	startTotal := 0.0
+	endTotal := 0.0
 
-	userPct := ((end[0].User - start[0].User) / diff) * 100
-	sysPct := ((end[0].System - start[0].System) / diff) * 100
-	nicePct := ((end[0].Nice - start[0].Nice) / diff) * 100
-	iowaitPct := ((end[0].Iowait - start[0].Iowait) / diff) * 100
-	irqPct := ((end[0].Irq - start[0].Irq) / diff) * 100
-	softirqPct := ((end[0].Softirq - start[0].Softirq) / diff) * 100
-	stealPct := ((end[0].Steal - start[0].Steal) / diff) * 100
-	guestPct := ((end[0].Guest - start[0].Guest) / diff) * 100
-	guestnicePct := ((end[0].GuestNice - start[0].GuestNice) / diff) * 100
-	perfData := fmt.Sprintf("cpu_idle=%.2f, cpu_system=%.2f, cpu_user=%.2f, cpu_nice=%.2f, cpu_iowait=%.2f, cpu_irq=%.2f, cpu_softirq=%.2f, cpu_steal=%.2f, cpu_guest=%.2f, cpu_guestnice=%.2f", idlePct, sysPct, userPct, nicePct, iowaitPct, irqPct, softirqPct, stealPct, guestPct, guestnicePct)
-	if usedPct > plugin.Critical {
-		fmt.Printf("%s Critical: %.2f%% CPU usage | %s\n", plugin.PluginConfig.Name, usedPct, perfData)
-
-		return sensu.CheckStateCritical, nil
-	} else if usedPct > plugin.Warning {
-		fmt.Printf("%s Warning: %.2f%% CPU usage | %s\n", plugin.PluginConfig.Name, usedPct, perfData)
-		return sensu.CheckStateWarning, nil
+	for _, fieldName := range fieldNames {
+		if fieldName != "Total" {
+			startTotal += getField(&start[0], fieldName)
+			endTotal += getField(&end[0], fieldName)
+		}
 	}
 
-	fmt.Printf("%s OK: %.2f%% CPU usage | %s\n", plugin.PluginConfig.Name, usedPct, perfData)
-	return sensu.CheckStateOK, nil
+	diff := endTotal - startTotal
+
+	var fieldValues = map[string]float64{}
+	perfData2 := ""
+
+	fieldValues["Total"] = 100 - (((end[0].Idle - start[0].Idle) / diff) * 100)
+	for _, fieldName := range fieldNames {
+		if fieldName != "Total" {
+			fieldValues[fieldName] = ((getField(&end[0], fieldName) - getField(&start[0], fieldName)) / diff) * 100
+		}
+		perfData2 += fmt.Sprintf("cpu_%s=%.2f ", strings.ToLower(fieldName), fieldValues[fieldName])
+	}
+
+	checkState := 0
+	if plugin.UsageTypes != "" {
+
+		usageChecks := strings.Split(plugin.UsageTypes, ",")
+		//fmt.Println(usageChecks)
+		for _, usageCheck := range usageChecks {
+			usageCheckParts := strings.Split(usageCheck, ":")
+			//fmt.Println(usageCheckParts)
+
+			check := &CpuCheck{
+				UsageType: usageCheckParts[0],
+			}
+			if len(usageCheckParts) > 1 {
+				check.Warning, err = strconv.ParseFloat(usageCheckParts[1], 8)
+			} else {
+				check.Warning = plugin.Warning
+			}
+			if len(usageCheckParts) > 2 {
+				check.Critical, err = strconv.ParseFloat(usageCheckParts[2], 8)
+			} else {
+				check.Critical = plugin.Critical
+			}
+			if len(usageCheckParts) > 3 {
+				check.Inverted, err = strconv.ParseBool(usageCheckParts[3])
+			} else {
+				check.Inverted = false
+			}
+			//fmt.Println(check)
+
+			state := checkValue(fieldValues, check)
+			if state > checkState {
+				checkState = state
+			}
+		}
+	} else {
+		check := &CpuCheck{
+			UsageType: plugin.UsageType,
+			Warning:   plugin.Warning,
+			Critical:  plugin.Critical,
+			Inverted:  false,
+		}
+		checkState = checkValue(fieldValues, check)
+	}
+
+	fmt.Printf("        | %s\n", perfData2)
+	return checkState, nil
+}
+
+func checkValue(fieldValues map[string]float64, check *CpuCheck) int {
+
+	checkState := 0
+	checkValuePct := fieldValues[check.UsageType]
+	checkValueType := strings.ToLower(check.UsageType)
+
+	if checkValuePct > check.Critical {
+		fmt.Printf("%s Critical: %.2f%% CPU %s usage, is higher than %.2f%%\n", plugin.PluginConfig.Name, checkValuePct, checkValueType, check.Critical)
+		checkState = sensu.CheckStateCritical
+	} else if checkValuePct > check.Warning {
+		fmt.Printf("%s Warning: %.2f%% CPU %s usage, is higher than %.2ff%%\n", plugin.PluginConfig.Name, checkValuePct, checkValueType, check.Warning)
+		checkState = sensu.CheckStateWarning
+	} else {
+		fmt.Printf("%s OK: %.2f%% CPU %s usage, is lower than %.2f%%\n", plugin.PluginConfig.Name, checkValuePct, checkValueType, check.Warning)
+	}
+
+	return checkState
+}
+
+func getField(v *cpu.TimesStat, field string) float64 {
+	value, err := reflections.GetField(v, field)
+	if err != nil {
+		return 0
+	}
+	switch i := value.(type) {
+	case float64:
+		return i
+	default:
+		return 0
+	}
 }
