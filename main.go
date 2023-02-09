@@ -184,12 +184,12 @@ func executeCheck(event *types.Event) (int, error) {
 				UsageType: usageCheckParts[0],
 			}
 			if len(usageCheckParts) > 1 {
-				check.Warning, err = strconv.ParseFloat(usageCheckParts[1], 8)
+				check.Warning, err = strconv.ParseFloat(usageCheckParts[1], 32)
 			} else {
 				check.Warning = plugin.Warning
 			}
 			if len(usageCheckParts) > 2 {
-				check.Critical, err = strconv.ParseFloat(usageCheckParts[2], 8)
+				check.Critical, err = strconv.ParseFloat(usageCheckParts[2], 32)
 			} else {
 				check.Critical = plugin.Critical
 			}
