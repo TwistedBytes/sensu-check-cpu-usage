@@ -229,7 +229,7 @@ func checkValue(fieldValues map[string]float64, check *CpuCheck) int {
 		fmt.Printf("%s %s Critical: %.2f%% is higher than %.2f%%\n", plugin.PluginConfig.Name, checkValueType, checkValuePct, check.Critical)
 		checkState = sensu.CheckStateCritical
 	} else if checkValuePct > check.Warning {
-		fmt.Printf("%s %s Warning: %.2f%% is higher than %.2ff%%\n", plugin.PluginConfig.Name, checkValueType, checkValuePct, check.Warning)
+		fmt.Printf("%s %s Warning: %.2f%% is higher than %.2f%%\n", plugin.PluginConfig.Name, checkValueType, checkValuePct, check.Warning)
 		checkState = sensu.CheckStateWarning
 	} else {
 		fmt.Printf("%s %s OK: %.2f%% is lower than %.2f%%\n", plugin.PluginConfig.Name, checkValueType, checkValuePct, check.Warning)
