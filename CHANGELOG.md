@@ -6,6 +6,8 @@ and this project adheres to [Semantic
 Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
+- Fork from sensu/check-cpu-usage
+- Change code to check multiple cpu usage parts in 1 go
 
 ## [0.2.2] - 2021-03-31
 
