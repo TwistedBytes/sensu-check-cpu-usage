@@ -199,6 +199,9 @@ func executeCheck(event *types.Event) (int, error) {
 				check.Inverted = false
 			}
 			//fmt.Println(check)
+			if err != nil {
+				return sensu.CheckStateCritical, fmt.Errorf("Error obtaining CPU timings: %v", err)
+			}
 
 			state := checkValue(fieldValues, check)
 			if state > checkState {
