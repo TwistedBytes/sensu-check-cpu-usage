@@ -36,9 +36,11 @@ Available Commands:
 
 Flags:
   -c, --critical float        Critical threshold for overall CPU usage (default 90)
-  -w, --warning float         Warning threshold for overall CPU usage (default 75)
-  -s, --sample-interval int   Length of sample interval in seconds (default 2)
   -h, --help                  help for check-cpu-usage
+  -s, --sample-interval int   Length of sample interval in seconds (default 2)
+      --usage-type string     Check cpu usage of type: [Total User System Idle Nice Iowait Irq Softirq Steal Guest GuestNice] (default "Total")
+      --usage-types string    Check cpu usage multiple type, see usage-type. list comma seperated format per value: 'type:warning:critical:invert'. Type is required, rest uses the defaults
+  -w, --warning float         Warning threshold for overall CPU usage (default 75)
 
 Use "check-cpu-usage [command] --help" for more information about a command.
 ```
@@ -73,6 +75,7 @@ spec:
     --critical 95
     --warning 85
     --sample-interval 2
+    --usage-types User:90:95,Steal:10:20
   output_metric_format: nagios_perfdata
   output_metric_handlers:
     - influxdb
