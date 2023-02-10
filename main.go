@@ -50,7 +50,7 @@ var (
 		PluginConfig: sensu.PluginConfig{
 			Name:     "check-cpu-usage",
 			Short:    "Check CPU usage and provide metrics",
-			Keyspace: "sensu.io/plugins/check-cpu-usage/config",
+			Keyspace: "sensu.io/plugins/tbsensu/check-cpu-usage/config",
 		},
 	}
 
